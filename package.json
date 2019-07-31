@@ -12,6 +12,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "socket.io": "^2.2.0",
+    "websocket": "^1.0.29",
     "ws": "^7.1.1"
   }
 }

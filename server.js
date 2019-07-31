@@ -1,35 +1,60 @@
 const fs = require('fs');
-const io = require('socket.io');
+const WebSocketServer = require('websocket').server;
+const WebSocketClient = require('websocket').client;
+const http = require('http');
+
 const configFile = 'config.json';
-let connections = 0;
-let server;
+let clients = new Map();
 
 const init = async configFile => {
   const config = await loadConfig(configFile);
-  server = createServer(config.server);
-  server.on('connection', socket => onClientConnection(socket));
+  const socketServer = createSocketServer(config.server, handleSocketRequest);
 };
 
-const onClientConnection = socket => {
-  connections++;
-  broadcast(getConnectionsSummary());
-  console.log(`New connection. Client count = ${connections}`);
-  socket.on('disconnect', () => onClientDisconnect());
+const originIsAllowed = origin => {
+  // ToDo: check requet origin properly
+  // -> see Server Example at https://github.com/theturtle32/WebSocket-Node
+  return true;
 };
 
-const onClientDisconnect = id => {
-  connections--;
-  console.log(`Client disconnected. ${connections} clients still connected.`);
-  broadcast(getConnectionsSummary());
+const handleSocketRequest = request => {
+  if (originIsAllowed(request.origin)) {
+    const key = request.key;
+    const connection = request.accept(null, request.origin);
+
+    trackConnection(key, connection);
+    connection.on('close', () => untrackConnection(key));
+  } else {
+    request.reject();
+  }
 };
 
-const getConnectionsSummary = () => {
-  const count = connections;
-  const summary = `${connections} client(s) connected`;
-  return { count, summary };
+const trackConnection = (key, connection) => {
+  clients.set(key, connection);
+  log(`${key} connected (${clients.size} total connections).`);
 };
 
-const broadcast = (data = {}, event = 'broadcast') => server.emit(event, data);
+const untrackConnection = key => {
+  clients.delete(key);
+  log(`Client ${key} disconnected (${clients.size} total connection/s).`);
+};
+
+const createSocketServer = (serverConfig, requestHandler) => {
+  const httpServer = http.createServer((req, resp) => {});
+  httpServer.listen(serverConfig.port, () => {});
+
+  const wsServer = new WebSocketServer({ httpServer });
+  wsServer.on('request', request => requestHandler(request));
+
+  return wsServer;
+};
+
+const sendMessage = (data = {}, type = 'broadcast') => {
+  const payload = formatPaylod({ data });
+  for (let connection of clients.values()) {
+    connection.sendUTF(payload);
+  }
+};
 
 const loadConfig = configPath => {
   return new Promise((resolve, reject) => {
@@ -40,8 +65,16 @@ const loadConfig = configPath => {
   });
 };
 
-const createServer = ({ port }) => {
-  return (server = io.listen(port));
+init(configFile);
+
+const formatPaylod = payload => {
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    log('Unable to convert payload to string.');
+  }
 };
 
-init(configFile);
+const log = msg => {
+  console.log(`${new Date()}: ${msg}`);
+};
