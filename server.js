@@ -1,31 +1,35 @@
-const app = require('express')();
-const server = require('http').Server(app);
-const io = require('socket.io')(server);
 const fs = require('fs');
+const io = require('socket.io');
 const configFile = 'config.json';
+let connections = 0;
+let server;
 
 const init = async configFile => {
   const config = await loadConfig(configFile);
-
-  // const { server, devices } = config;
-  // const boseClient = getConnection(devices[0].ip, devices[0].protocol);
-  // boseClient.on('message', function incoming(data) {
-  //   sendMessage(data);
-  // });
-
-  createServer(config.server);
-
-  app.get('/', function(req, res) {
-    res.sendFile(`${__dirname}/index.html`);
-  });
-
-  io.on('connection', function(socket) {
-    socket.emit('service', { event: 'connection accepted' });
-    socket.on('ping', function(data) {
-      console.log(`ping received: ${data}`);
-    });
-  });
+  server = createServer(config.server);
+  server.on('connection', socket => onClientConnection(socket));
 };
+
+const onClientConnection = socket => {
+  connections++;
+  broadcast(getConnectionsSummary());
+  console.log(`New connection. Client count = ${connections}`);
+  socket.on('disconnect', () => onClientDisconnect());
+};
+
+const onClientDisconnect = id => {
+  connections--;
+  console.log(`Client disconnected. ${connections} clients still connected.`);
+  broadcast(getConnectionsSummary());
+};
+
+const getConnectionsSummary = () => {
+  const count = connections;
+  const summary = `${connections} client(s) connected`;
+  return { count, summary };
+};
+
+const broadcast = (data = {}, event = 'broadcast') => server.emit(event, data);
 
 const loadConfig = configPath => {
   return new Promise((resolve, reject) => {
@@ -37,38 +41,7 @@ const loadConfig = configPath => {
 };
 
 const createServer = ({ port }) => {
-  server.listen(port, () => {
-    console.log('I am listening');
-  });
+  return (server = io.listen(port));
 };
 
 init(configFile);
-
-/*
-
-const server = http.createServer((req, res) => {
-  res.write(`<h1>${new Date()}</h1>`);
-});
-const wss = new WebSocket.Server({ server });
-wss.on('connection', ws => {
-  console.log('Connection');
-  console.log(ws);
-});
-
-server.listen(8081);
-
-const getConnection = (ip, protocol) => {
-  const conn = new WebSocket(`ws://${ip}:8080`, protocol);
-  return conn;
-};
-
-const sendMessage = data => {
-  console.log(data.substr(0, 20));
-  console.log(wss.clients);
-  wss.clients.forEach(function each(client) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(data);
-    }
-  });
-};
-*/
