@@ -1,0 +1,15 @@
+{
+  "server": {
+    "port": "8080"
+  },
+  "devices": [
+    {
+      "name": "Kitchen",
+      "type": "Soundtouch",
+      "protocol": "gabbo",
+      "ip": "192.168.178.79",
+      "alias": "0cae7d44ad27.local",
+      "mac": "0CAE7D44AD27"
+    }
+  ]
+}
