@@ -2,7 +2,7 @@ const fs = require('fs');
 const WebSocketServer = require('websocket').server;
 const WebSocketClient = require('websocket').client;
 const http = require('http');
-const convert = require('xml-js');
+const convert = require('fast-xml-parser');
 
 const configFile = 'config.json';
 let clients = new Map();
@@ -76,38 +76,64 @@ const formatPaylod = payload => {
 };
 
 const log = msg => {
-  console.log(`${new Date()}: ${msg}`);
+  const d = new Date();
+  const ts = `${d.getFullYear()}-${d.getMonth() +
+    1}-${d.getDate()}|${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}:${d.getMilliseconds()}`;
+  console.log(`${ts} ${msg}`);
 };
 
 const createBoseClient = device => {
   const client = new WebSocketClient();
+  console.log('got a client');
+  console.log(client);
 
-  client.connect(`ws://${device.ip}:8080`, device.protocol);
+  client.connect(`ws://${device.alias}:8080`, device.protocol);
   client.on('connect', connection => {
+    log('Connected to Bose Soundtouch');
     connection.on('error', error => onBoseError(error));
     connection.on('close', () => onBoseDisconnect());
     connection.on('message', message => onBoseMessage(message));
   });
+  client.on('connectFailed', error => onBoseError(error));
 };
 
 const parseBoseMessage = utf8Data => {
-  return convert.xml2js(utf8Data, { compact: true });
+  const options = {
+    parseNodeValue: true,
+    parseTrueNumberOnly: false,
+    trimValues: true,
+    ignoreAttributes: false,
+    attributeNamePrefix: '',
+    // attrNodeName: 'attr', //default is 'false'
+    //
+    textNodeName: 'text',
+    ignoreNameSpace: false,
+    // cdataTagName: "__cdata", //default is 'false'
+    // cdataPositionChar: "\\c",
+  };
+  console.log(utf8Data);
+  return convert.parse(utf8Data, options);
+  // const traversable = convert.getTraversalObj(utf8Data, options);
+  // return convert.convertToJson(traversable, options);
 };
 
 const onBoseError = data => {
+  log('[Bose Connection ERROR]');
   if (data.type === 'utf8') {
-    const msg = parseBoseMessage(data.utf8Data);
-    log(`[Bose Connection ERROR] ${msg}`);
+    data = parseBoseMessage(data.utf8Data);
   }
+  log(data);
 };
 
 const onBoseDisconnect = () => {
   log('Bose connection lost');
 };
+
 const onBoseMessage = data => {
+  console.log('message');
   if (data.type === 'utf8') {
     const msg = parseBoseMessage(data.utf8Data);
-    log(`[Received from Bose] ${msg}`);
+    console.log(JSON.stringify(msg, null, 2));
     sendMessage(msg);
   } else {
     log('Unexpected message format from Bose:');

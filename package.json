@@ -10,6 +10,7 @@
   "author": "Gil Fewster <gil@theroyals.com.au> (http://www.advanceparty.com)",
   "license": "MIT",
   "dependencies": {
+    "fast-xml-parser": "^3.12.19",
     "websocket": "^1.0.29",
     "xml-js": "^1.6.11"
   }
