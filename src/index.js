@@ -3,6 +3,7 @@ const WebSocketServer = require('websocket').server;
 const WebSocketClient = require('websocket').client;
 const http = require('http');
 const convert = require('xml-js');
+
 const configFile = 'config.json';
 let clients = new Map();
 
@@ -90,9 +91,7 @@ const createBoseClient = device => {
 };
 
 const parseBoseMessage = utf8Data => {
-  // todo: convert string to structured data
-  // return utf8Data;
-  return JSON.parse(convert.xml2json(utf8Data, { compact: true }));
+  return convert.xml2js(utf8Data, { compact: true });
 };
 
 const onBoseError = data => {

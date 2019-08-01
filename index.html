@@ -1,9 +1,0 @@
-<p>Watch the console!</p>
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  var socket = io.connect('http://localhost');
-  socket.on('service', function(data) {
-    console.log(`Service message: ${data}`);
-  });
-  socket.emit('ping', 'I am a client, and I have connected');
-</script>
